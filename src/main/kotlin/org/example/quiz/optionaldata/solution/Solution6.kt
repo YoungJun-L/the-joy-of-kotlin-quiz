@@ -1,6 +1,7 @@
 package org.example.quiz.optionaldata.solution
 
 import kotlin.math.pow
+import org.example.quiz.list.solution.List as MyList
 
 sealed class Option<out A> {
     abstract fun isEmpty(): Boolean
@@ -72,3 +73,12 @@ fun <A, B> liftV2(f: (A) -> B): (Option<A>) -> Option<B> = {
 
 fun <A, B, C> map2(oa: Option<A>, ob: Option<B>, f: (A) -> (B) -> C): Option<C> =
     oa.flatMap { a -> ob.map { b -> f(a)(b) } }
+
+fun <A> sequence(list: MyList<Option<A>>): Option<MyList<A>> =
+    list.foldRight(Option(MyList())) { e -> { acc -> map2(e, acc) { a -> { b -> b.cons(a) } } } }
+
+fun <A, B> traverse(list: MyList<A>, f: (A) -> Option<B>): Option<MyList<B>> =
+    list.foldRight(Option(MyList())) { e -> { acc -> map2(f(e), acc) { a -> { b -> b.cons(a) } } } }
+
+fun <A> sequenceV2(list: MyList<Option<A>>): Option<MyList<A>> = traverse(list) { it }
+

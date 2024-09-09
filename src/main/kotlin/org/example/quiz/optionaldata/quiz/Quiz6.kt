@@ -1,5 +1,7 @@
 package org.example.quiz.optionaldata.quiz
 
+import org.example.quiz.list.solution.List as MyList
+
 sealed class Option<out A> {
     abstract fun isEmpty(): Boolean
 
@@ -103,7 +105,14 @@ fun <A, B, C> map2(oa: Option<A>, ob: Option<B>, f: (A) -> (B) -> C): Option<C> 
  *
  * Option 으로 List 합성하기: List`<`Option`<`A`>>`를 List`<`Option`<`B`>>`로 엮어주는 함수를 작성하라. 원래 리스트의 모든 원소가 Some
  * 인스턴스면 결과가 Some`<`List`<`A`>>`이고 None이 하나라도 있으면 None`<`List`<`A`>>`가 결과다.
- * > 5장에서 정의한 [org.example.quiz.list.solution.List] 이다.
+ * > 5장에서 정의한 [org.example.quiz.list.solution.List] 이다. [foldRight], [map2] 을 이용
  */
-fun <A> sequence(list: org.example.quiz.list.solution.List<Option<A>>): Option<org.example.quiz.list.solution.List<A>> =
-    TODO()
+fun <A> sequence(list: MyList<Option<A>>): Option<MyList<A>> = TODO()
+
+/**
+ * 연습문제 6-12
+ *
+ * Option 으로 List 합성하기: [foldRight] 를 한 번만 호출하는 함수를 정의하라. 이 함수를 사용해 [sequence] 를 다시 구현하라.
+ */
+fun <A, B> traverse(list: MyList<A>, f: (A) -> Option<B>): Option<MyList<B>> = TODO()
+fun <A> sequenceV2(list: MyList<Option<A>>): Option<MyList<A>> = TODO()
