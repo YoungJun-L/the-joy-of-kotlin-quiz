@@ -3,10 +3,13 @@ package org.example.quiz.advancedlist.solution
 import org.example.quiz.error.solution.Result
 import org.example.quiz.error.solution.Result.Companion.failure
 import org.example.quiz.error.solution.map2
+import org.example.quiz.optionaldata.solution.Option
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.ExecutorService
 import kotlin.math.max
 import kotlin.math.min
 
-sealed class List<A> {
+sealed class List<out A> {
     abstract fun isEmpty(): Boolean
 
     abstract val length: Int
@@ -54,19 +57,102 @@ sealed class List<A> {
     }.first
 
     fun splitAt(index: Int): Pair<List<A>, List<A>> {
-        tailrec fun splitAt(acc: List<A>, list: List<A>, i: Int): Pair<List<A>, List<A>> = when (list) {
-            is Cons -> if (i == 0) list.reverse() to acc else splitAt(acc.cons(list.head), list.tail, i - 1)
-            else -> list.reverse() to acc
+        tailrec fun splitAt(i: Int, acc: List<A>, list: List<A>): Pair<List<A>, List<A>> = when (list) {
+            is Cons -> if (i == 0) acc.reverse() to list else splitAt(i - 1, acc.cons(list.head), list.tail)
+            else -> acc.reverse() to list
         }
-        return splitAt(invoke(), this.reverse(), length - max(min(index, length), 0))
+        return splitAt(max(min(index, length), 0), invoke(), this)
     }
 
-    fun splitAtV2(index: Int): Pair<List<A>, List<A>> = TODO()
+    fun splitAtV2(index: Int): Pair<List<A>, List<A>> {
+        val (left, right, _) = foldLeftShort(Triple(invoke<A>(), this, index), { it.third == 0 }) { acc ->
+            { e -> Triple(acc.first.cons(e), (acc.second as Cons).tail, acc.third - 1) }
+        }
+        return left.reverse() to right
+    }
 
-    fun hasSubList(sub: List<A>): Boolean = TODO()
-    fun startsWith(sub: List<A>): Boolean = TODO()
+    fun hasSubList(sub: List<@UnsafeVariance A>): Boolean {
+        tailrec fun hasSubList(list: List<A>, sub: List<A>): Boolean = when (list) {
+            is Cons -> if (list.startsWith(sub)) true else hasSubList(list.tail, sub)
+            else -> sub.isEmpty()
+        }
+        return hasSubList(this, sub)
+    }
 
-    fun <B> groupBy(f: (A) -> B): Map<A, List<B>> = TODO()
+    fun startsWith(sub: List<@UnsafeVariance A>): Boolean {
+        tailrec fun startsWith(list: List<A>, sub: List<A>): Boolean = when (sub) {
+            is Cons -> when (list) {
+                is Cons -> if (list.head == sub.head) startsWith(list.tail, sub.tail) else false
+                else -> false
+            }
+
+            else -> true
+        }
+        return startsWith(this, sub)
+    }
+
+    fun <B> groupBy(f: (A) -> B): Map<B, List<A>> = reverse().foldLeft(mapOf()) { acc ->
+        { e -> f(e).let { acc + (it to acc.getOrDefault(it, invoke()).cons(e)) } }
+    }
+
+    fun exists(p: (A) -> Boolean): Boolean = foldLeftShort(false, { it }) { _ -> { e -> p(e) } }
+
+    fun forAll(p: (A) -> Boolean): Boolean = foldLeftShort(true, { !it }) { _ -> { e -> p(e) } }
+
+    fun divide(depth: Int): List<List<A>> {
+        tailrec fun divide(acc: List<List<A>>, d: Int): List<List<A>> = when (acc) {
+            is Cons ->
+                if (acc.head.length < 2 || d == 0)
+                    acc
+                else
+                    divide(acc.flatMap { x -> x.splitListAt(x.length / 2) }, d - 1)
+
+            is Empty -> acc
+        }
+        return divide(List(this), depth)
+    }
+
+    fun splitListAt(index: Int): List<List<A>> {
+        tailrec fun splitListAt(i: Int, acc: List<A>, list: List<A>): List<List<A>> = when (list) {
+            is Cons -> if (i == 0) List(acc.reverse(), list) else splitListAt(i - 1, acc.cons(list.head), list.tail)
+            is Empty -> List(acc.reverse(), list)
+        }
+        return splitListAt(max(min(index, length), 0), invoke(), this)
+    }
+
+    fun <B> parFoldLeft(es: ExecutorService, identity: B, f: (B) -> (A) -> B, m: (B) -> (B) -> B): Result<B> = try {
+        Result(
+            divide(1024).map { list ->
+                es.submit<B> { list.foldLeft(identity, f) }
+            }.map<B> { future ->
+                try {
+                    future.get()
+                } catch (e: InterruptedException) {
+                    error(e)
+                } catch (e: ExecutionException) {
+                    error(e)
+                }
+            }.foldLeft(identity, m)
+        )
+    } catch (e: Exception) {
+        failure(e)
+    }
+
+    fun <B> parMap(es: ExecutorService, g: (A) -> B): Result<List<B>> = try {
+        Result(
+            this.map { x -> es.submit<B> { g(x) } }.map { future ->
+                try {
+                    future.get()
+                } catch (e: InterruptedException) {
+                    error(e)
+                } catch (e: ExecutionException) {
+                    error(e)
+                }
+            }
+        )
+    } catch (e: Exception) {
+        failure(e)
+    }
 
     abstract class Empty<A> : List<A>()
 
@@ -79,9 +165,9 @@ sealed class List<A> {
         override fun toString(): String = "[NIL]"
     }
 
-    fun cons(a: A): List<A> = Cons(a, this)
+    fun cons(a: @UnsafeVariance A): List<A> = Cons(a, this)
 
-    fun setHead(a: A): List<A> = when (this) {
+    fun setHead(a: @UnsafeVariance A): List<A> = when (this) {
         is Empty -> throw IllegalStateException()
         is Cons -> tail.cons(a)
     }
@@ -90,23 +176,21 @@ sealed class List<A> {
         tailrec fun drop(n: Int, list: List<A>): List<A> =
             if (n <= 0) list
             else when (list) {
-                Nil -> list
+                is Empty -> list
                 is Cons -> drop(n - 1, list.tail)
-                else -> throw IllegalStateException()
             }
         return drop(n, this)
     }
 
     fun dropWhile(p: (A) -> Boolean): List<A> {
         tailrec fun dropWhile(list: List<A>): List<A> = when (list) {
-            Nil -> list
+            is Empty -> list
             is Cons -> if (p(list.head)) dropWhile(list.tail) else list
-            is Empty -> throw IllegalStateException()
         }
         return dropWhile(this)
     }
 
-    fun concat(list: List<A>): List<A> = concat(this, list)
+    fun concat(list: List<@UnsafeVariance A>): List<A> = concat(this, list)
 
     fun init(): List<A> = reverse().drop(1).reverse()
 
@@ -134,10 +218,10 @@ sealed class List<A> {
     fun <R> coFoldRight(initial: R, operation: (A) -> (R) -> R): R =
         coFoldRight(this, initial, operation)
 
-    fun concatViaFoldLeft(list: List<A>): List<A> =
+    fun concatViaFoldLeft(list: List<@UnsafeVariance A>): List<A> =
         concatViaFoldLeft(this, list)
 
-    fun concatViaFoldRight(list: List<A>): List<A> =
+    fun concatViaFoldRight(list: List<@UnsafeVariance A>): List<A> =
         concatViaFoldRight(this, list)
 
     fun <B> map(f: (A) -> B): List<B> = foldLeft(invoke<B>()) { acc -> { acc.cons(f(it)) } }.reverse()
@@ -249,3 +333,14 @@ fun <A, B> unzip(list: List<Pair<A, B>>): Pair<List<A>, List<B>> = list.foldRigh
         Pair(acc.first.cons(e.first), acc.second.cons(e.second))
     }
 }
+
+fun <A, S> unfold(seed: S, f: (S) -> Option<Pair<A, S>>): List<A> {
+    tailrec fun unfold(acc: List<A>, z: S): List<A> = when (val next = f(z)) {
+        is Option.Some -> unfold(acc.cons(next.value.first), next.value.second)
+        Option.None -> acc
+    }
+    return unfold(List.Nil, seed).reverse()
+}
+
+fun range(start: Int, endExclusive: Int): List<Int> =
+    unfold(start) { x -> if (x < endExclusive) Option(x to x + 1) else Option() }
