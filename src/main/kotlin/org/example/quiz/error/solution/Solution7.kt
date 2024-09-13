@@ -189,6 +189,29 @@ sealed class Result<out A> : Serializable {
 
         fun <A> failure(exception: Exception): Result<A> =
             Failure(IllegalStateException(exception))
+
+        fun <A> of(f: () -> A): Result<A> =
+            try {
+                Result(f())
+            } catch (e: RuntimeException) {
+                failure(e)
+            } catch (e: Exception) {
+                failure(e)
+            }
+
+        fun <T> of(
+            predicate: (T) -> Boolean,
+            value: T,
+            message: String
+        ): Result<T> =
+            try {
+                if (predicate(value))
+                    Result(value)
+                else
+                    failure("Assertion failed for value $value with message: $message")
+            } catch (e: Exception) {
+                failure(IllegalStateException("Exception while validating $value", e))
+            }
     }
 }
 
