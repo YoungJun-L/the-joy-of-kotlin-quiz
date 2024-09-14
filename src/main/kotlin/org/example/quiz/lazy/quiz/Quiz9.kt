@@ -168,6 +168,66 @@ sealed class Stream<out A> {
 
     fun exists(p: (A) -> Boolean): Boolean = exists(this, p)
 
+    /**
+     * 연습문제 9-21
+     *
+     * 스트림 접기: [foldRight] 를 가지고 [takeWhile] 을 구현하라.
+     */
+    fun takeWhileViaFoldRight(p: (A) -> Boolean): Stream<A> = TODO()
+
+    /**
+     * 연습문제 9-22
+     *
+     * 스트림 접기: [foldRight] 를 사용해 headSafe 를 구현하라. 이 함수는 스트림에 머리가 있으면 [Result.Success] 를, 스트림이 비어 있으면
+     * [Result.Empty] 를 반환해야 한다.
+     */
+    fun headSafeViaFoldRight(): Result<A> = TODO()
+
+    /**
+     * 연습문제 9-23
+     *
+     * 스트림 접기: [map] 을 [foldRight] 를 사용해 구현하라. 이 함수가 스트림 원소를 하나도 평가하지 않는다는 사실을 확인하라.
+     */
+    fun <B> map(f: (A) -> B): Stream<B> = TODO()
+
+    /**
+     * 연습문제 9-24
+     *
+     * 스트림 접기: [foldRight] 를 가지고 [filter] 를 구현하라.
+     */
+    fun filter(p: (A) -> Boolean): Stream<A> = TODO()
+
+    /**
+     * 연습문제 9-25
+     *
+     * 스트림 접기: [foldRight] 를 가지고 [append] 를 구현하라. 이 함수는 인자에 대해 지연 계산을 수행해야 한다.
+     */
+    fun append(stream2: Lazy<Stream<@UnsafeVariance A>>): Stream<A> = TODO()
+
+    /**
+     * 연습문제 9-26
+     *
+     * 스트림 접기: [foldRight] 를 가지고 [flatMap] 을 구현하라.
+     */
+    fun <B> flatMap(f: (A) -> Stream<B>): Stream<B> = TODO()
+
+    /**
+     * 연습문제 9-27
+     *
+     * 평가와 함수 적용 추적하기: 술어(A에서 Boolean으로 가는 함수)를 파라미터로 받아서 Result`<`A`> 를 반환하는 함수를 작성하라. 술어를 참으로
+     * 만드는 원소를 찾으면 [Result.Success] 를 반환하고, 그런 원소가 없으면 [Result.Empty] 를 반환하라.
+     */
+    fun find(p: (A) -> Boolean): Result<A> = TODO()
+
+    /**
+     * 연습문제 9-30
+     *
+     * 스트림을 구체적인 문제에 적용하기: [filter] 를 [foldRight] 로 구현할 때 술어와 매치되지 않는 원소가 맨 앞에서부터 연속으로 1,000개나
+     * 2,000개 정도 있으면 스택 오버플로가 일어난다. 스택을 안전하게 사용하는 [filter] 함수를 구현하라.
+     * > 문제는 술어가 false를 반환하는 원소의 시퀀스가 너무 길어질 때 발생한다. 이를 제거할 방법을 생각해 보라.
+     */
+    fun filterV2(p: (A) -> Boolean): Stream<A> = TODO()
+
     private object Empty : Stream<Nothing>() {
         override fun head(): Result<Nothing> = Result()
         override fun tail(): Result<Nothing> = Result()
@@ -246,5 +306,24 @@ sealed class Stream<out A> {
          * 스트림 처리하기: 조건이 만족할 때까지만 원소를 평가하는 exists 함수를 구현하라. 스택을 안전하게 사용해야 한다.
          */
         tailrec fun <A> exists(stream: Stream<A>, p: (A) -> Boolean): Boolean = TODO()
+
+        /**
+         * 연습문제 9-29
+         *
+         * 스트림을 구체적인 문제에 적용하기: [iterate] 를 일반화시킬 수 있다. 인자로 S라는 타입의 시작 상태와 S에서 Result`<`Pair`<`A, S`>>`
+         * 로 가는 함수를 받아서, A로 이뤄진 스트림을 반환하는 함수를 작성하라. [Result] 를 반환함으로써 스트림이 계속 진행되거나 멈춰야 하는지 표시할
+         * 수 있다. 데이터 생성의 근원으로 S 라는 상태를 사용하는 것은 만들어지는 데이터와 그 데이터의 근원이 같은 타입이 아닐 수도 있다는 뜻이다. 새로
+         * 만드는 함수를 응용하기 위해 [fibs] 와 [from] 을 이 함수를 사용해 작성하라.
+         */
+        fun <A, S> unfold(z: S, f: (S) -> Result<Pair<A, S>>): Stream<A> = TODO()
+        fun fibs(): Stream<Int> = TODO()
+        fun fromV3(i: Int): Stream<Int> = TODO()
     }
 }
+
+/**
+ * 연습문제 9-28
+ *
+ * 스트림을 구체적인 문제에 적용하기: 0부터 시작하는 피보나치 수로 이뤄진 무한 스트림을 만들어내는 함수를 작성하라.
+ */
+fun fibs(): Stream<Int> = TODO()

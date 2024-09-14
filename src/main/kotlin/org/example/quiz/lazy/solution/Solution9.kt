@@ -67,6 +67,38 @@ sealed class Stream<out A> {
 
     fun exists(p: (A) -> Boolean): Boolean = exists(this, p)
 
+    fun takeWhileViaFoldRight(p: (A) -> Boolean): Stream<A> = foldRight(Lazy { Empty }) { e ->
+        { acc: Lazy<Stream<A>> ->
+            if (p(e)) cons(Lazy { e }, acc) else Empty
+        }
+    }
+
+    fun headSafeViaFoldRight(): Result<A> = foldRight(Lazy { Result() }) { e -> { _ -> Result(e) } }
+
+    fun <B> map(f: (A) -> B): Stream<B> =
+        foldRight(Lazy { Empty }) { e -> { acc: Lazy<Stream<B>> -> cons(Lazy { f(e) }, acc) } }
+
+    fun filter(p: (A) -> Boolean): Stream<A> = foldRight(Lazy { Empty }) { e ->
+        { acc: Lazy<Stream<A>> -> if (p(e)) cons(Lazy { e }, acc) else acc() }
+    }
+
+    fun append(stream2: Lazy<Stream<@UnsafeVariance A>>): Stream<A> = foldRight(stream2) { e ->
+        { acc -> cons(Lazy { e }, acc) }
+    }
+
+    fun <B> flatMap(f: (A) -> Stream<B>): Stream<B> = foldRight(Lazy { Empty }) { e ->
+        { acc: Lazy<Stream<B>> -> f(e).append(acc) }
+    }
+
+    fun find(p: (A) -> Boolean): Result<A> = filter(p).head()
+
+    fun filterV2(p: (A) -> Boolean): Stream<A> = dropWhile { x -> !p(x) }.let { stream ->
+        when (stream) {
+            is Cons -> cons(stream.hd, Lazy { stream.tl().filterV2(p) })
+            Empty -> stream
+        }
+    }
+
     private object Empty : Stream<Nothing>() {
         override fun head(): Result<Nothing> = Result()
         override fun tail(): Result<Nothing> = Result()
@@ -150,5 +182,15 @@ sealed class Stream<out A> {
             is Cons -> if (p(stream.hd())) exists(stream.tl(), p) else false
             Empty -> false
         }
+
+        fun <A, S> unfold(z: S, f: (S) -> Result<Pair<A, S>>): Stream<A> =
+            f(z).map { (a, s) -> cons(Lazy { a }, Lazy { unfold(s, f) }) }.getOrElse(Empty)
+
+        fun fibs(): Stream<Int> =
+            unfold(0 to 1) { (first, second) -> Result(first to (first + second to first)) }
+
+        fun fromV3(i: Int): Stream<Int> = unfold(i) { x -> Result(x to x + 1) }
     }
 }
+
+fun fibs(): Stream<Int> = Stream.iterate(0 to 1) { (a, b) -> a + b to a }.map { it.first }
