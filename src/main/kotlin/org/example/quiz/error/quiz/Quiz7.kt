@@ -48,6 +48,8 @@ sealed class Either<E, out A> {
 }
 
 sealed class Result<out A> : Serializable {
+    abstract fun mapEmpty(): Result<Any>
+
     /**
      * 연습문제 7-4
      *
@@ -110,6 +112,8 @@ sealed class Result<out A> : Serializable {
     fun exists(p: (A) -> Boolean): Boolean = TODO()
 
     internal class Failure<out A>(internal val exception: RuntimeException) : Result<A>() {
+        override fun mapEmpty(): Result<Nothing> = failure(exception)
+
         override fun <B> map(f: (A) -> B): Result<B> = TODO()
 
         override fun <B> flatMap(f: (A) -> Result<B>): Result<B> = TODO()
@@ -134,6 +138,8 @@ sealed class Result<out A> : Serializable {
     }
 
     internal class Success<out A>(internal val value: A) : Result<A>() {
+        override fun mapEmpty(): Result<Nothing> = failure("Not empty")
+
         override fun <B> map(f: (A) -> B): Result<B> = TODO()
 
         override fun <B> flatMap(f: (A) -> Result<B>): Result<B> = TODO()
@@ -158,6 +164,8 @@ sealed class Result<out A> : Serializable {
     }
 
     internal object Empty : Result<Nothing>() {
+        override fun mapEmpty(): Result<Any> = Result(Any())
+
         override fun <B> map(f: (Nothing) -> B): Result<B> = this
         override fun <B> flatMap(f: (Nothing) -> Result<B>): Result<B> = this
         override fun toString(): String = "Empty"
